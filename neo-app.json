@@ -47,8 +47,6 @@
 		},
 		"description": "ESPM"
 	}],
-	"welcomeFile": "/index.html",
-	"sendWelcomeFileRedirect": true,
 	"cacheControl": [{
 		"directive": "private",
 		"maxAge": 0,
