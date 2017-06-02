@@ -72,21 +72,11 @@ sap.ui.define([
 
 			onShareToC2GPress: function (oEvent) {
 				var oModel = sap.ui.getCore().getModel("global");
-				var sCardTypeGUID = oModel.getProperty("/templateID");
-				var sUsername = oModel.getProperty("/username");
-				
-				if (!sCardTypeGUID || sCardTypeGUID.length === 0) {
-					sap.m.MessageToast.show("You must set the Template ID first");
-					return;
-				}
-				//var sCardTypeGUID = "C7904673-605C-41CA-9CE4-EEC327AE90D4";
-				
 				var sPath = this.getView().getElementBinding().getPath();
 				
-				var url = "/mobileservices/origin/hcpms/CARDS/v1/cardTypes/" + sCardTypeGUID + "/cardInstances";
+				var url = "/mobileservices/origin/hcpms/CARDS/v1/register/json";
 				var bodyJson = {
-				  "resourceIdentifiers": [{"uri": "/SampleServices/ESPM.svc" + sPath + "?$expand=Products"}],
-				  "username": sUsername
+					"link": window.location.href
 				};
 				
 				jQuery.ajax({

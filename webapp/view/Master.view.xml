@@ -27,9 +27,6 @@
 				</items>
 			</List>
 		</semantic:content>
-		<semantic:customFooterContent>
-			<Button text="Set C2G Template ID" press="onSetC2GTemplatePress"/>
-		</semantic:customFooterContent>
 		<semantic:addAction>
 			<semantic:AddAction id="addButton" enabled="{appView>/addEnabled}" press="onAdd"/>
 		</semantic:addAction>

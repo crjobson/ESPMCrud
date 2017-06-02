@@ -50,7 +50,7 @@ sap.ui.define([
 					'accept': 'application/json'
 				},
 				success : function(data, textStatus, xhr) {
-					oModel.     setProperty("/username", data.name);
+					oModel.setProperty("/username", data.name);
 				},
 				error : function(xhr, textStatus, error) {
 				}
