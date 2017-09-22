@@ -73,10 +73,12 @@ sap.ui.define([
 			onShareToC2GPress: function (oEvent) {
 				var oModel = sap.ui.getCore().getModel("global");
 				var sPath = this.getView().getElementBinding().getPath();
+				var sUsername = oModel.getProperty("/username");
 				
 				var url = "/mobileservices/origin/hcpms/CARDS/v1/register/json";
 				var bodyJson = {
-					"link": window.location.href
+					"link": window.location.href,
+					"username": sUsername
 				};
 				
 				jQuery.ajax({
