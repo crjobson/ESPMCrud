@@ -110,7 +110,11 @@ sap.ui.define([
 					}
 				},
 				error : function(xhr, textStatus, error) {
-					sap.m.MessageToast.show("This Card cannot be added");
+					var errMsg = "This Card cannot be added";
+					if (xhr.responseText) {
+						errMsg += ": " + xhr.responseText;
+					}
+					sap.m.MessageToast.show(errMsg);
 				}
 			});
 		},
