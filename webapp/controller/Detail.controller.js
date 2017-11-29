@@ -78,11 +78,9 @@ sap.ui.define([
 			var oModel = sap.ui.getCore().getModel("global");
 			var sUsername = oModel.getProperty("/username");
 			
-			var url = "/mobileservices/origin/hcpms/CARDS/v1/register/templated";
+			var url = "/mobileservices/origin/hcpms/CARDS/v1/register/json";
 			var bodyJson = {
-				"method": "REGISTER",
 				"link": window.location.href,
-				"match": window.location.hash.substring(1),  // remove leading #
 				"username": sUsername
 			};
 			/*
