@@ -38,7 +38,7 @@ sap.ui.define([
 			// apply content density mode to root view
 			this.getView().addStyleClass(this.getOwnerComponent().getContentDensityClass());
 			
-			var oModel = new sap.ui.model.json.JSONModel({"templateID": null, "username": null});
+			var oModel = new sap.ui.model.json.JSONModel({"username": null});
 				
 			sap.ui.getCore().setModel(oModel, "global");
 			
