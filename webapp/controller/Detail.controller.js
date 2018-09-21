@@ -78,20 +78,13 @@ sap.ui.define([
 			var oModel = sap.ui.getCore().getModel("global");
 			var sUsername = oModel.getProperty("/username");
 			
-			var url = "/mobileservices/origin/hcpms/CARDS/v1/register/json";
+			var url = "/mobileservices/origin/hcpms/CARDS/v1/register/templated";
 			var bodyJson = {
+				"method": "REGISTER",
 				"link": window.location.href,
 				"username": sUsername
 			};
-			/*
-			var sPath = this.getView().getElementBinding().getPath();
-			var url = "/mobileservices/origin/hcpms/CARDS/v1/register/json";
-			var bodyJson = {
-				"link": window.location.href,
-				"username": sUsername
-			};
-			*/
-			
+
 			jQuery.ajax({
 				url : url,
 				async : true,
