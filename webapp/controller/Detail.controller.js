@@ -75,13 +75,22 @@ sap.ui.define([
 		 * @public
 		 */
 		onShareToC2GPress: function (oEvent) {
-			var oModel = sap.ui.getCore().getModel("global");
-			var sUsername = oModel.getProperty("/username");
+			var oModel = this.getView().getModel();
+			var sPath = this.getView().getElementBinding().getPath();
+			
+			var oGlobalModel = sap.ui.getCore().getModel("global");
+			var sUsername = oGlobalModel.getProperty("/username");
+			
+			var oObject = oModel.getObject(sPath);
 			
 			var url = "/mobileservices/origin/hcpms/CARDS/v1/register/templated";
 			var bodyJson = {
 				"method": "REGISTER",
 				"link": window.location.href,
+				"templateName": "ESPM",
+				"parameters": {
+					"ID1": oObject.SupplierId
+				},
 				"username": sUsername
 			};
 
@@ -95,11 +104,11 @@ sap.ui.define([
 				},
 				success : function(data, textStatus, xhr) {
 					if (xhr.status === 201) {
-						sap.m.MessageToast.show("Successfully added Card");
+						sap.m.MessageToast.show("Successfully added Mobile Card");
 					} else if (xhr.status === 200) {
-						sap.m.MessageToast.show("Card has already been added");
+						sap.m.MessageToast.show("This Mobile Card has already been added");
 					} else {
-						sap.m.MessageToast.show("This Card cannot be added");
+						sap.m.MessageToast.show("This Mobile Card cannot be added");
 					}
 				},
 				error : function(xhr, textStatus, error) {
@@ -148,6 +157,7 @@ sap.ui.define([
 				sSuccessMessage = this._oResourceBundle.getText("deleteSuccess", sObjectHeader);
 
 			var fnMyAfterDeleted = function() {
+				
 				MessageToast.show(sSuccessMessage);
 				oViewModel.setProperty("/busy", false);
 				var oNextItemToSelect = that.getOwnerComponent().oListSelector.findNextItem(sPath);
@@ -359,7 +369,56 @@ sap.ui.define([
 		 * @private
 		 */
 		_deleteOneEntity: function(sPath, fnSuccess, fnFailed) {
+			var that = this;
+			
 			var oPromise = new Promise(function(fnResolve, fnReject) {
+				// START tell C2G
+				var oModel = that.getView().getModel();
+				var sSupplierPath = that.getView().getElementBinding().getPath();
+			
+				var oGlobalModel = sap.ui.getCore().getModel("global");
+				var sUsername = oGlobalModel.getProperty("/username");
+			
+				var oObject = oModel.getObject(sSupplierPath);
+			
+				var url = "/mobileservices/origin/hcpms/CARDS/v1/register/templated";
+				var bodyJson = {
+					"method": "DELETE",
+					"link": window.location.href,
+					"templateName": "ESPM",
+					"parameters": {
+						"ID1": oObject.SupplierId
+					},
+					"username": sUsername
+				};
+
+				jQuery.ajax({
+					url : url,
+					async : true,
+					type: "POST",
+					data:  JSON.stringify(bodyJson),
+					headers: {
+						'content-type': 'application/json'
+					},
+					success : function(data, textStatus, xhr) {
+						var msg;
+						if (xhr.status === 204) {
+							msg = "Mobile Card has been deleted";
+						} else {
+							msg = "Mobile Card was not deleted (status: " + xhr.status + ")";
+						}
+						sap.m.MessageToast.show(msg);
+					},
+					error : function(xhr, textStatus, error) {
+						var errMsg = "This Mobile Card cannot be deleted";
+						if (xhr.responseText) {
+							errMsg += ": " + xhr.responseText;
+						}
+						sap.m.MessageToast.show(errMsg);
+					}
+				});
+				// --- END Tell C2G
+				
 				this._oODataModel.setUseBatch(false);
 				this._oODataModel.remove(sPath, {
 					success: fnResolve,

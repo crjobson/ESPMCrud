@@ -192,7 +192,11 @@ sap.ui.define([
 
 			this._oViewModel.setProperty("/viewTitle", this._oResourceBundle.getText("createViewTitle"));
 			this._oViewModel.setProperty("/mode", "create");
+			var sSupplierId = "" + this.getOwnerComponent().oListSelector.nextSupplierId++;
 			var oContext = this._oODataModel.createEntry("Suppliers", {
+				properties: {
+					SupplierId: sSupplierId
+				},
 				success: this._fnEntityCreated.bind(this),
 				error: this._fnEntityCreationFailed.bind(this)
 			});
@@ -245,6 +249,50 @@ sap.ui.define([
 		 * @private
 		 */
 		_fnUpdateSuccess: function() {
+			// update a card in Mobile Cards
+			var oModel = this.getView().getModel();
+			var sPath = this.getView().getElementBinding().getPath();
+			
+			var oGlobalModel = sap.ui.getCore().getModel("global");
+			var sUsername = oGlobalModel.getProperty("/username");
+			
+			var oObject = oModel.getObject(sPath);
+			
+			var url = "/mobileservices/origin/hcpms/CARDS/v1/register/templated";
+			var bodyJson = {
+				"method": "NOTIFY",
+				"link": window.location.href,
+				"templateName": "ESPM",
+				"parameters": {
+					"ID1": oObject.SupplierId
+				},
+				"username": sUsername
+			};
+
+			jQuery.ajax({
+				url : url,
+				async : true,
+				type: "POST",
+				data:  JSON.stringify(bodyJson),
+				headers: {
+					'content-type': 'application/json'
+				},
+				success : function(data, textStatus, xhr) {
+					if (xhr.status === 202) {
+						sap.m.MessageToast.show("Successfully updated Mobile Card");
+					} else {
+						sap.m.MessageToast.show("This Mobile Card cannot be updated - status " + xhr.status);
+					}
+				},
+				error : function(xhr, textStatus, error) {
+					var errMsg = "This Card cannot be added";
+					if (xhr.responseText) {
+						errMsg += ": " + xhr.responseText;
+					}
+					sap.m.MessageToast.show(errMsg);
+				}
+			});
+			
 			this.getModel("appView").setProperty("/busy", false);
 			this.getView().unbindObject();
 			this.getRouter().getTargets().display("object");
@@ -256,6 +304,50 @@ sap.ui.define([
 		 * @private
 		 */
 		_fnEntityCreated: function(oData) {
+			// create a card in Mobile Cards
+			var oGlobalModel = sap.ui.getCore().getModel("global");
+			var sUsername = oGlobalModel.getProperty("/username");
+			
+			// construct the URL 
+			var sUrl = window.location.protocol + '//' + window.location.host + window.location.pathname + window.location.search + '#/Suppliers/' + oData.SupplierId;
+			var url = "/mobileservices/origin/hcpms/CARDS/v1/register/templated";
+			var bodyJson = {
+				"method": "REGISTER",
+				"link": sUrl,
+				"templateName": "ESPM",
+				"parameters": {
+					"ID1": oData.SupplierId
+				},
+				"username": sUsername
+			};
+
+			jQuery.ajax({
+				url : url,
+				async : true,
+				type: "POST",
+				data:  JSON.stringify(bodyJson),
+				headers: {
+					'content-type': 'application/json'
+				},
+				success : function(data, textStatus, xhr) {
+					if (xhr.status === 201) {
+						sap.m.MessageToast.show("Successfully created Mobile Card");
+					} else if (xhr.status === 200) {
+						sap.m.MessageToast.show("This Mobile Card has already been added");
+					} else {
+						sap.m.MessageToast.show("This Mobile Card cannot be added");
+					}
+				},
+				error : function(xhr, textStatus, error) {
+					var errMsg = "This Mobile Card cannot be added";
+					if (xhr.responseText) {
+						errMsg += ": " + xhr.responseText;
+					}
+					sap.m.MessageToast.show(errMsg);
+				}
+			});
+
+			
 			var sObjectPath = this.getModel().createKey("Suppliers", oData);
 			this.getModel("appView").setProperty("/itemToSelect", "/" + sObjectPath); //save last created
 			this.getModel("appView").setProperty("/busy", false);

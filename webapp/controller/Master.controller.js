@@ -58,6 +58,28 @@ sap.ui.define([
 			this.getRouter().getRoute("master").attachPatternMatched(this._onMasterMatched, this);
 			this.getRouter().attachBypassed(this.onBypassed, this);
 			this._oODataModel = this.getOwnerComponent().getModel();
+			
+			var oButton2 = new sap.m.Button("Save", {
+                    text: "Save",
+                    press: this.onSetC2GSavePress.bind(this)
+        	});
+            var oButton3 = new sap.m.Button("Cancel", {
+                    text: "Cancel",
+                    press: this.onSetC2GCancelPress.bind(this)
+            });
+			var oDialog = new sap.m.Dialog("Dialog1",{
+                    title:"Dialog",
+                    modal: true,
+                    contentWidth:"1em",
+                    buttons: [oButton2, oButton3],
+                    content:[
+						new sap.m.Label({text:"Template ID"}),
+						new sap.m.Input({
+							maxLength: 36,
+							id: "TemplateID"
+                        })
+                    ]
+            });
 		},
 
 		/* =========================================================== */
@@ -208,9 +230,177 @@ sap.ui.define([
 
 		},
 
+		onSetC2GSavePress: function () {
+			sap.ui.getCore().byId("Dialog1").close();
+
+			var oGlobalModel = sap.ui.getCore().getModel("global");
+			var sTemplateId = sap.ui.getCore().byId("TemplateID").getValue();
+			oGlobalModel.setProperty("/templateID", sTemplateId);
+
+			this._syncWithC2G(sTemplateId);
+		},
+
+		onSetC2GCancelPress: function () {
+			sap.ui.getCore().byId("Dialog1").close();
+		},
+
+		onSync: function () {
+			var oGlobalModel = sap.ui.getCore().getModel("global");
+			var sTemplateId = oGlobalModel.getProperty("/templateId");
+			
+			if (!sTemplateId) {
+				if (window.location.host === "espmcrud-a8af3c52a.dispatcher.hana.ondemand.com") {  // val
+					sTemplateId = "3DC2AA1A-EF28-4AD8-9C35-1071D6389CE6";
+				} else if (window.location.host === "espmcrud-a1a4cd8bb.dispatcher.hana.ondemand.com") { // stg
+					sTemplateId = "B20F67B9-C572-470B-8EFE-D9E682DFA252";
+				} else if (window.location.host === "espmcrud-a6818cee3.dispatcher.hana.ondemand.com") { // int
+					sTemplateId = "74FE8AFC-2839-458E-B783-A47F2713BA41";
+				} else if (window.location.host === "espmcrud-wef9495df.dispatcher.int,sap.hana.ondemand.com") { // dev
+					sTemplateId = null;
+				} else if (window.location.host === "espmcrud-ad6f2ef40.dispatcher.hana.ondemand.com") { // exec
+					sTemplateId = "DBFACC7A-68AC-416E-B5A6-9CDA613BD645";
+				} else if (window.location.host === "espmcrud-a967a6693.dispatcher.hana.ondemand.com") { // edge
+					sTemplateId = "3543A164-C79E-40B3-9F65-54BB102296DD";
+				}
+			}
+			
+			if (!sTemplateId) {
+				sap.ui.getCore().byId("Dialog1").open();
+			} else {
+				this._syncWithC2G(sTemplateId);
+			}
+		},
+		
 		/* =========================================================== */
 		/* begin: internal methods                                     */
 		/* =========================================================== */
+
+		_syncWithC2G: function (sTemplateId) {
+			var that = this;
+
+			var oViewModel = this.getModel("masterView");
+			oViewModel.setProperty("/busy", true);
+
+			var oPromise = new Promise(function (fnResolve, fnReject) {
+				var url = "/mobileservices/origin/hcpms/CARDS/v1/card/types/"+sTemplateId+"/userdata.json";
+				jQuery.ajax({
+					url : url,
+					async : true,
+					type: "GET",
+					headers: {
+						'accept': 'application/json'
+					},
+					dataType: "json",
+					success : function(oData, sTextStatus, oXhr) {
+						if (oXhr.status === 200) {
+							console.log("Query Cards:\n"+JSON.stringify(oData)+"\n========");
+							fnResolve(oData);
+						} else {
+							console.log("Query Cards failed: " + oXhr.status);
+							fnReject(new Error("Unexpected status return from card query: " + oXhr.status));
+						}
+					},
+					error : function(oXhr, sTextStatus, oError) {
+						console.log("Query Cards failed: " + oError + " ("+oXhr.responseText + "/" + sTextStatus + ")");
+						fnReject(new Error(oXhr.responseText ? oXhr.responseText : "Error querying card list from Mobile Services"));
+					}
+				});
+			});
+			
+			oPromise
+				.then(function (oData) {
+					return that._mergeDataWithC2G(oData);
+				})
+				.then(function () {
+					sap.m.MessageToast.show("Successful sync with Mobile Cards");
+				})
+				.catch(function (error) {
+					sap.m.MessageToast.show("Unable to sync with Mobile Cards: status " + error);
+				})
+				.then(function () {
+					oViewModel.setProperty("/busy", false);
+				});
+		},
+		
+		_mergeDataWithC2G: function(oData) {
+			var bodyJson;
+			var oGlobalModel = sap.ui.getCore().getModel("global");
+			var sUsername = oGlobalModel.getProperty("/username");
+			
+			var aCards = this.getOwnerComponent().oListSelector.buildCardsList(oData);
+
+			var aPromises = [];
+			var url = "/mobileservices/origin/hcpms/CARDS/v1/register/templated";
+			for (var i = 0; i < aCards.length; i++) {
+				aPromises.push(new Promise(function(fnResolve, fnReject) {
+					var oCard = aCards[i];
+					// add or delete?
+					if (oCard.Status === "Delete") {
+						// delete from C2G
+						bodyJson = {
+							"method": "DELETE",
+							"templateName": "ESPM",
+							"parameters": {
+								"ID1": oCard.SupplierId
+							},
+							"username": sUsername
+						};
+
+						jQuery.ajax({
+							url : url,
+							async : true,
+							type: "POST",
+							data:  JSON.stringify(bodyJson),
+							headers: {
+								'content-type': 'application/json'
+							},
+							success : function(data, textStatus, xhr) {
+								console.log("Successfully DELETEd card " + oCard.SupplierId);
+								fnResolve();
+							},
+							error : function(xhr, textStatus, error) {
+								console.log("Failed to DELETE card " + oCard.SupplierId);
+								fnReject(error);
+							}
+						});
+					} if (oCard.Status === "New") {
+						// add to C2G
+						bodyJson = {
+							"link": window.location.protocol + "//" + window.location.host + window.location.pathname + window.location.search + "#/Suppliers/" + oCard.SupplierId,
+							"method": "REGISTER",
+							"templateName": "ESPM",
+							"parameters": {
+								"ID1": oCard.SupplierId
+							},
+							"username": sUsername
+						};
+
+						jQuery.ajax({
+							url : url,
+							async : true,
+							type: "POST",
+							data:  JSON.stringify(bodyJson),
+							headers: {
+								'content-type': 'application/json'
+							},
+							success : function(data, textStatus, xhr) {
+								console.log("Successfully REGISTERed card " + oCard.SupplierId);
+								fnResolve();
+							},
+							error : function(xhr, textStatus, error) {
+								console.log("Failed to REGISTER card " + oCard.SupplierId);
+								fnReject(error);
+							}
+						});
+					} else {
+						// already there ...
+						console.log("Skip card " + oCard.SupplierId);
+						fnResolve();
+					}
+				}));
+			}
+			return Promise.all(aPromises);
+		},
 
 		/**
 		 * Creates the model for the view
@@ -224,7 +414,8 @@ sap.ui.define([
 				title: this.getResourceBundle().getText("masterTitleCount", [0]),
 				noDataText: this.getResourceBundle().getText("masterListNoDataText"),
 				sortBy: "SupplierName",
-				groupBy: "None"
+				groupBy: "None",
+				busy: false
 			});
 		},
 

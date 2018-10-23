@@ -95,6 +95,21 @@ sap.ui.define([
 							return true;
 						}
 					});
+					
+					if (!this.nextSupplierId) {
+						var maxSupplierId = 0;
+						oList.getItems().forEach(function(oItem) {
+							if (oItem.getBindingContext()) {
+								var sPath = oItem.getBindingContext().getPath();
+								var oObject = oList.getModel().getObject(sPath);
+								var iSupplierId = parseInt(oObject.SupplierId, 10);
+								if (iSupplierId > maxSupplierId) {
+									maxSupplierId = iSupplierId;
+								}
+							}
+						});
+						this.nextSupplierId = Math.ceil((maxSupplierId+1)/10)*10;
+					}
 				}.bind(this),
 				function() {
 					jQuery.sap.log.warning("Could not select the list item with the path" + sBindingPath +
@@ -214,6 +229,54 @@ sap.ui.define([
 				return aItems[0];
 			}
 			return null; //not found
+		},
+		
+		buildCardsList: function (oData) {
+			var oList = this._oList;
+			var aCards = oData.data || [];
+			var aItems = oList.getItems();
+			var aMergedList = [];
+			
+			for (var i = 0; i < aItems.length; i++) {
+				var oItem = aItems[i];
+				if (oItem.getBindingContext()) {
+					var sPath = oItem.getBindingContext().getPath();
+					var oObject = oList.getModel().getObject(sPath);
+					aMergedList.push({
+						"SupplierId": oObject.SupplierId,
+						"SupplierName": oObject.SupplierName,
+						"Status": "New",
+						"GUID": null
+					});
+				}
+			}
+			
+			for (var j = 0; j < aCards.length; j++) {
+				var oCard = aCards[j];
+				// check for empty details ... this seems to happen sometimes
+				if (!oCard.d || !oCard.d.SupplierId) {
+					continue;
+				}
+				var bFound = false;
+				for (var i = 0; i < aMergedList.length; i++) {
+					var oMerged = aMergedList[i];
+					if (oMerged.SupplierId === oCard.d.SupplierId) {
+						oMerged.Status = "OK";
+						oMerged.GUID = oCard._ext_wx_card_instance_id;
+						bFound = true;
+						break;
+					}
+				}
+				if (!bFound) {
+					aMergedList.push({
+						"SupplierId": oCard.d.SupplierId,
+						"Status": "Delete",
+						"GUID": oCard._ext_wx_card_instance_id
+					});
+				}
+			}
+			
+			return aMergedList;
 		}
 	});
 
