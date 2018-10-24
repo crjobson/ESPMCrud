@@ -74,6 +74,7 @@ sap.ui.define([
 		 * Event handler when Share to C2G is clicked
 		 * @public
 		 */
+		 /**
 		onShareToC2GPress: function (oEvent) {
 			var oModel = this.getView().getModel();
 			var sPath = this.getView().getElementBinding().getPath();
@@ -120,7 +121,8 @@ sap.ui.define([
 				}
 			});
 		},
-
+		**/
+		
 		/**
 		 * Updates the item count within the line item table's header
 		 * @param {object} oEvent an event containing the total number of items in the list

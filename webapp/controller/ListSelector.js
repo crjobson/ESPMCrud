@@ -233,7 +233,7 @@ sap.ui.define([
 		
 		buildCardsList: function (oData) {
 			var oList = this._oList;
-			var aCards = oData.data || [];
+			var aCards = oData || [];
 			var aItems = oList.getItems();
 			var aMergedList = [];
 			
@@ -243,8 +243,10 @@ sap.ui.define([
 					var sPath = oItem.getBindingContext().getPath();
 					var oObject = oList.getModel().getObject(sPath);
 					aMergedList.push({
-						"SupplierId": oObject.SupplierId,
-						"SupplierName": oObject.SupplierName,
+						"parameters": {
+							"ID1": oObject.SupplierId,
+							"supplierName": oObject.SupplierName
+						},
 						"Status": "New",
 						"GUID": null
 					});
@@ -254,24 +256,26 @@ sap.ui.define([
 			for (var j = 0; j < aCards.length; j++) {
 				var oCard = aCards[j];
 				// check for empty details ... this seems to happen sometimes
-				if (!oCard.d || !oCard.d.SupplierId) {
+				if (!oCard || !oCard.parameters || !oCard.parameters.ID1) {
 					continue;
 				}
 				var bFound = false;
 				for (var i = 0; i < aMergedList.length; i++) {
 					var oMerged = aMergedList[i];
-					if (oMerged.SupplierId === oCard.d.SupplierId) {
+					if (oMerged.parameters.ID1 === oCard.parameters.ID1) {
 						oMerged.Status = "OK";
-						oMerged.GUID = oCard._ext_wx_card_instance_id;
+						oMerged.GUID = oCard.id;
 						bFound = true;
 						break;
 					}
 				}
 				if (!bFound) {
 					aMergedList.push({
-						"SupplierId": oCard.d.SupplierId,
+						"parameters": {
+							"ID1": oCard.parameters.ID1
+						},
 						"Status": "Delete",
-						"GUID": oCard._ext_wx_card_instance_id
+						"GUID": oCard.id
 					});
 				}
 			}

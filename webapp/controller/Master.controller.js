@@ -245,50 +245,29 @@ sap.ui.define([
 		},
 
 		onSync: function () {
-			var oGlobalModel = sap.ui.getCore().getModel("global");
-			var sTemplateId = oGlobalModel.getProperty("/templateId");
-			
-			if (!sTemplateId) {
-				if (window.location.host === "espmcrud-a8af3c52a.dispatcher.hana.ondemand.com") {  // val
-					sTemplateId = "3DC2AA1A-EF28-4AD8-9C35-1071D6389CE6";
-				} else if (window.location.host === "espmcrud-a1a4cd8bb.dispatcher.hana.ondemand.com") { // stg
-					sTemplateId = "B20F67B9-C572-470B-8EFE-D9E682DFA252";
-				} else if (window.location.host === "espmcrud-a6818cee3.dispatcher.hana.ondemand.com") { // int
-					sTemplateId = "74FE8AFC-2839-458E-B783-A47F2713BA41";
-				} else if (window.location.host === "espmcrud-wef9495df.dispatcher.int,sap.hana.ondemand.com") { // dev
-					sTemplateId = null;
-				} else if (window.location.host === "espmcrud-ad6f2ef40.dispatcher.hana.ondemand.com") { // exec
-					sTemplateId = "DBFACC7A-68AC-416E-B5A6-9CDA613BD645";
-				} else if (window.location.host === "espmcrud-a967a6693.dispatcher.hana.ondemand.com") { // edge
-					sTemplateId = "3543A164-C79E-40B3-9F65-54BB102296DD";
-				}
-			}
-			
-			if (!sTemplateId) {
-				sap.ui.getCore().byId("Dialog1").open();
-			} else {
-				this._syncWithC2G(sTemplateId);
-			}
-		},
-		
-		/* =========================================================== */
-		/* begin: internal methods                                     */
-		/* =========================================================== */
-
-		_syncWithC2G: function (sTemplateId) {
 			var that = this;
 
+			var oGlobalModel = sap.ui.getCore().getModel("global");
+			var sUsername = oGlobalModel.getProperty("/username");
 			var oViewModel = this.getModel("masterView");
 			oViewModel.setProperty("/busy", true);
 
 			var oPromise = new Promise(function (fnResolve, fnReject) {
-				var url = "/mobileservices/origin/hcpms/CARDS/v1/card/types/"+sTemplateId+"/userdata.json";
+				var url = "/mobileservices/origin/hcpms/CARDS/v1/register/templated";
+				var bodyJson = {
+					"method": "LIST",
+					"templateName": "ESPM",
+					"username": sUsername
+				};
+
 				jQuery.ajax({
 					url : url,
 					async : true,
-					type: "GET",
+					type: "POST",
+					data: JSON.stringify(bodyJson),
 					headers: {
-						'accept': 'application/json'
+						'accept': 'application/json',
+						'content-type': 'application/json'
 					},
 					dataType: "json",
 					success : function(oData, sTextStatus, oXhr) {
@@ -323,83 +302,128 @@ sap.ui.define([
 		},
 		
 		_mergeDataWithC2G: function(oData) {
-			var bodyJson;
+			function fnMergeCard(aCards, i, sUsername, fnResolve, fnReject) {
+				var bodyJson;
+				var url = "/mobileservices/origin/hcpms/CARDS/v1/register/templated";
+				var oCard = aCards[i];
+				var sCardIdentifier = JSON.stringify(oCard.parameters);
+				// add or delete?
+						if (oCard.Status === "Delete") {
+							// delete from C2G
+							bodyJson = {
+								"method": "DELETE",
+								"templateName": "ESPM",
+								"parameters": oCard.parameters,
+								"username": sUsername
+							};
+
+							jQuery.ajax({
+								url : url,
+								async : true,
+								type: "POST",
+								data:  JSON.stringify(bodyJson),
+								headers: {
+									'accept': 'application/json',
+									'content-type': 'application/json'
+								},
+								success : function(data, textStatus, xhr) {
+									console.log("Successfully DELETEd card " + sCardIdentifier);
+									fnResolve();
+								},
+								error : function(xhr, textStatus, error) {
+									console.log("Failed to DELETE card " + sCardIdentifier);
+									fnReject(error);
+								}
+							});
+						} if (oCard.Status === "New") {
+							// add to C2G
+							bodyJson = {
+								"link": window.location.protocol + "//" + window.location.host + window.location.pathname + window.location.search + "#/Suppliers/" + oCard.SupplierId,
+								"method": "REGISTER",
+								"templateName": "ESPM",
+								"parameters": oCard.parameters,
+								"username": sUsername
+							};
+
+							jQuery.ajax({
+								url : url,
+								async : true,
+								type: "POST",
+								data:  JSON.stringify(bodyJson),
+								headers: {
+									'content-type': 'application/json'
+								},
+								success : function(data, textStatus, xhr) {
+									console.log("Successfully REGISTERed card " + sCardIdentifier);
+									fnResolve();
+								},
+								error : function(xhr, textStatus, error) {
+									console.log("Failed to REGISTER card " + sCardIdentifier);
+									fnReject(error);
+								}
+							});
+						} else {
+							// already there ...
+							console.log("Skip card " + sCardIdentifier);
+							fnResolve();
+						}
+			}
+					
 			var oGlobalModel = sap.ui.getCore().getModel("global");
 			var sUsername = oGlobalModel.getProperty("/username");
 			
 			var aCards = this.getOwnerComponent().oListSelector.buildCardsList(oData);
 
+			var delay = 0;
 			var aPromises = [];
-			var url = "/mobileservices/origin/hcpms/CARDS/v1/register/templated";
 			for (var i = 0; i < aCards.length; i++) {
 				aPromises.push(new Promise(function(fnResolve, fnReject) {
-					var oCard = aCards[i];
-					// add or delete?
-					if (oCard.Status === "Delete") {
-						// delete from C2G
-						bodyJson = {
-							"method": "DELETE",
-							"templateName": "ESPM",
-							"parameters": {
-								"ID1": oCard.SupplierId
-							},
-							"username": sUsername
-						};
-
-						jQuery.ajax({
-							url : url,
-							async : true,
-							type: "POST",
-							data:  JSON.stringify(bodyJson),
-							headers: {
-								'content-type': 'application/json'
-							},
-							success : function(data, textStatus, xhr) {
-								console.log("Successfully DELETEd card " + oCard.SupplierId);
-								fnResolve();
-							},
-							error : function(xhr, textStatus, error) {
-								console.log("Failed to DELETE card " + oCard.SupplierId);
-								fnReject(error);
-							}
-						});
-					} if (oCard.Status === "New") {
-						// add to C2G
-						bodyJson = {
-							"link": window.location.protocol + "//" + window.location.host + window.location.pathname + window.location.search + "#/Suppliers/" + oCard.SupplierId,
-							"method": "REGISTER",
-							"templateName": "ESPM",
-							"parameters": {
-								"ID1": oCard.SupplierId
-							},
-							"username": sUsername
-						};
-
-						jQuery.ajax({
-							url : url,
-							async : true,
-							type: "POST",
-							data:  JSON.stringify(bodyJson),
-							headers: {
-								'content-type': 'application/json'
-							},
-							success : function(data, textStatus, xhr) {
-								console.log("Successfully REGISTERed card " + oCard.SupplierId);
-								fnResolve();
-							},
-							error : function(xhr, textStatus, error) {
-								console.log("Failed to REGISTER card " + oCard.SupplierId);
-								fnReject(error);
-							}
-						});
-					} else {
-						// already there ...
-						console.log("Skip card " + oCard.SupplierId);
-						fnResolve();
-					}
+					setTimeout(fnMergeCard.bind(this, aCards, i, sUsername, fnResolve, fnReject), (delay += 750));
 				}));
 			}
 			return Promise.all(aPromises);
+		},
+
+					
+		onDeleteAllCards: function () {
+			var oGlobalModel = sap.ui.getCore().getModel("global");
+			var sUsername = oGlobalModel.getProperty("/username");
+			var oViewModel = this.getModel("masterView");
+			oViewModel.setProperty("/busy", true);
+
+			var url = "/mobileservices/origin/hcpms/CARDS/v1/register/templated";
+			var bodyJson = {
+				"method": "DELETEALL",
+				"templateName": "ESPM",
+				"username": sUsername
+			};
+
+			jQuery.ajax({
+				url : url,
+				async : true,
+				type: "POST",
+				data: JSON.stringify(bodyJson),
+				headers: {
+					'accept': 'application/json',
+					'content-type': 'application/json'
+				},
+				dataType: "json",
+				success : function(oData, sTextStatus, oXhr) {
+					if (oXhr.status === 204) {
+						console.log("Delete all Cards succeeded");
+						sap.m.MessageToast.show("Successful Delete of all Mobile Cards");
+					} else {
+						console.log("Delete all Cards failed: " + oXhr.status);
+						sap.m.MessageToast.show("Delete All cards failed with status: " + oXhr.status);
+					}
+					oViewModel.setProperty("/busy", false);
+				},
+				error : function(oXhr, sTextStatus, oError) {
+					console.log("Delete all Cards failed: " + oError + " ("+oXhr.responseText + "/" + sTextStatus + ")");
+					sap.m.MessageToast.show("Delete All cards failed: " + sTextStatus);
+					oViewModel.setProperty("/busy", false);
+				}
+			});
 		},
 
 		/**

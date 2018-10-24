@@ -264,7 +264,8 @@ sap.ui.define([
 				"link": window.location.href,
 				"templateName": "ESPM",
 				"parameters": {
-					"ID1": oObject.SupplierId
+					"ID1": oObject.SupplierId,
+					"supplierName": oObject.SupplierName
 				},
 				"username": sUsername
 			};
@@ -316,7 +317,8 @@ sap.ui.define([
 				"link": sUrl,
 				"templateName": "ESPM",
 				"parameters": {
-					"ID1": oData.SupplierId
+					"ID1": oData.SupplierId,
+					"supplierName": oData.SupplierName
 				},
 				"username": sUsername
 			};

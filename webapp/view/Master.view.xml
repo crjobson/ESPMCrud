@@ -25,7 +25,10 @@
 			<semantic:AddAction id="addButton" enabled="{appView>/addEnabled}" press="onAdd"/>
 		</semantic:addAction>
 	<semantic:mainAction>
-	    <semantic:MainAction text="Sync With Mobile Cards" id="action0" press="onSync"/>
+	    <semantic:MainAction text="Sync MC" id="action0" press="onSync"/>
 	</semantic:mainAction>
+	<semantic:negativeAction>
+	    <semantic:NegativeAction text="Delete MC" id="action1" press="onDeleteAllCards"/>
+	</semantic:negativeAction>
 	</semantic:MasterPage>
 </mvc:View>
